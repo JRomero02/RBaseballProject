@@ -1,0 +1,177 @@
+---
+title: "Final Project"
+author: "Josue Romero"
+date: "December 11, 2019"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+library(lsr)
+library(xtable)
+library(ggplot2)
+library(knitr)
+library(readxl)
+library(car)
+library(Hmisc)
+
+```
+
+In this project, I will be using stats from the 2019 season to find indicators or strong predictors for the response variable of Team Wins.
+Below is a peak at that data.
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+data <-read_excel("~/Desktop/R Projects/mlbstats2019.xlsx")
+head(data)
+```
+# Visual Data Analysis
+
+## Mapping OBP
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+ggplot(data=data)+
+  geom_point(mapping=aes(x=data$OBP,y=data$Wins,col=data$Team))+
+  xlab("Team Average OBP") +
+  ylab("Team's Wins") +
+  labs(color = 'Teams')+
+  ggtitle("Team's On-Base Percentage vs Team's Total Wins")
+```
+## Mapping SLG
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+ggplot(data=data)+
+  geom_point(mapping=aes(x=data$SLG,y=data$Wins,col=data$Team))+
+  xlab("Team's Average SLG") +
+  ylab("Team's Wins") +
+  labs(color = 'Teams')+
+  ggtitle("Team's Average Slugging Percentage vs. Team's Total Wins")
+```
+## Mapping OPS
+
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+ggplot(data=data)+
+  geom_point(mapping=aes(x=data$OPS,y=data$Wins,col=data$Team))+
+  xlab("Team's Average OPS") +
+  ylab("Team's Wins") +
+  labs(color = 'Teams')+
+  ggtitle("Team's Average On-base plus slugging vs. Team's Total Wins")
+```
+
+
+## Mapping Steal Percentage
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+ggplot(data=data)+
+  geom_point(mapping=aes(x=data$`Steal%`,y=data$Wins,col=data$Team))+
+  xlab("Team's Successful Steal Percentage") +
+  ylab("Team's Wins") +
+  labs(color = 'Teams')+
+  ggtitle("Team's Successful Steal Percentage vs. Team's Total Wins")
+```
+
+## Mapping Batting Average
+
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+ggplot(data=data)+
+  geom_point(mapping=aes(x=data$AVG,y=data$Wins,col=data$Team))+
+  xlab("Team Average ") +
+  ylab("Team's Wins") +
+  labs(color = 'Teams')+
+  ggtitle("Team's Batting Average vs. Team's Total Wins")
+```
+
+
+# Anova 
+First we want to compare the relationship between Wins and On-Base Percentage.
+The null hypothesis is, $$H_0:μ_1=μ_2=μ_3=μ_4=....=μ_{30}$$
+The alternative hypothesis is,
+$$H_1:μ_1\neqμ_2\neqμ_3\neqμ_4\neq....\neqμ_{30}$$
+## AVG one-way ANOVA test
+In our results, the F values is greater than 1 $F(1,28)=13>1$ and P is significant since p<3.5e-09, The null hypothesis can be rejected. 
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+my_aov <-aov(formula=Wins~AVG,data=data)
+summary(my_aov)
+```
+## AVG eta squared test.
+A eta squared($\eta^2$) is run to measure the effect size in an ANOVA. The $\eta^2$ explains the outcome of Wins can be determined in terms of the predictor(OBP).our $\eta^2$=.33 is not asignificant number that can explain our response variable is by our predictor.
+
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+print(etaSquared( x = my_aov ))
+```
+
+## Steal % one-way ANOVA test
+In our results, the F values is less than 1 $F(1,28)=.724<1$ and P is not significant since p=.402 which is more than .05, The null hypothesis cannot be rejected. 
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+my_aov <-aov(formula=Wins~`Steal%`,data=data)
+summary(my_aov)
+```
+## Steal % eta squared test.
+A eta squared($\eta^2$) is run to measure the effect size in an ANOVA. The $\eta^2$ explains the outcome of Wins can be determined in terms of the predictor(Steal %).our $\eta^2$=.025 a significantly low number. Meaning there is very little relationship between successful Steal % and wins.  
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+print(etaSquared( x = my_aov ))
+```
+
+
+
+# Model 
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+model<-lm(formula=Wins~OBP+SLG+OPS+`Steal%`+AVG,data=data)
+```
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+step (object=model,direction="backward")
+```
+From the inputted predictor variables of Wins~OBP+SLG+OPS+`Steal%`+AVG, the backward elimination model removes variables that are not good indicators of the response variable. Now the new model is lm(formula = Wins ~ OBP+SLG+OPS+AVG, data = data)
+
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+#Best Regression Model
+regression.advanced<-lm(formula = Wins ~ OBP+SLG+OPS+AVG, data = data)
+kable(regression.advanced$coefficients)
+
+```
+
+
+$$\hat{Wins_i}=-6171.97*OBP_i-6990.46*SLG_i+7116.18*OPS_i-464.61*AVG_i-161.92$$
+
+
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+X<-data$OBP
+X2<-data$SLG
+X3<-data$OPS
+X4<-data$AVG
+Y<-data$Wins
+Y.pred<--6171.97*X-6990.46*X2+7116.18*X3-464.61*X4-161.92
+SS.resid<-sum((Y-Y.pred)^2)
+SS.tot<-sum((Y-mean(Y))^2)
+R.squared<-1-(SS.resid/SS.tot)
+print(R.squared)
+```
+The $R^2$ value is the proportion of the variance in the outcome variable can be accounted for by the predictor
+
+## Model Checking
+### Checking the normality of the residuals
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+plot(x=regression.advanced,which=2)
+```
+Our Residual plot appears to produce a straight line. 
+
+### Checking the linearity of the relationship
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+#
+plot(x=regression.advanced,which=1)
+```
+Ideally the red line should be completely horizontal. There is some departure due to an outlier. 
+
+### Checking the homogeneity of variance
+```{r,warnings = FALSE, message=FALSE, echo = FALSE}
+plot(x=regression.advanced,which=3)
+```
+Very similar to checking the linearity of the relationship, the residuals are converted to z scores and the red line should be horizontal. 
+
+## Conclusion:
+-Teams with high SLG,OBP , OPS, and even AVG averages gained the most wins./n
+-Not all high stats translated to a lot of wins/n
+-Some Stats are stronger indicator than others/n
+-More data comparison to find .21
+
+
+## Code Appendix
+```{r code = readLines(knitr::purl("MSC390Final.Rmd", documentation = 1)), echo = T, eval = F}
+```
+
